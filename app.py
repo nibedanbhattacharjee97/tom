@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import sqlite3
 import io
+from streamlit_option_menu import option_menu
 
 # Function to create database connection
 def get_db_connection():
@@ -71,7 +72,7 @@ def upload_technician():
                     st.error("Please fill all the fields and upload the required files")
         conn.close()
 
-# Function to Book Technician Or Call Technician
+# Function to book technician
 def book_technician():
     conn = get_db_connection()
     if conn:
@@ -84,22 +85,19 @@ def book_technician():
             st.write("No technicians available. Please check back later.")
             return
 
-        # Responsive display for technicians
         page = st.number_input("Page", min_value=1, max_value=(len(technicians) - 1) // 4 + 1, step=1, value=1)
         start = (page - 1) * 4
         end = start + 4
         technicians_to_display = technicians[start:end]
 
         for i, tech in enumerate(technicians_to_display):
-            # Use only one column layout on mobile for better readability
-            col1, col2 = st.columns([1, 1])
-            with col1:
+            col1, col2 = st.columns(2)
+            with col1 if i % 2 == 0 else col2:
                 st.write(f"### {tech[2]}")
                 st.write(f"Phone: {tech[3]}")
                 st.write(f"Address: {tech[4]}")
                 st.write(f"Uploaded At: {tech[7]}")
                 st.image(io.BytesIO(tech[5]), caption='Technician Photo', use_column_width=True)
-            with col2:
                 st.download_button(
                     "Download Technical Certificate",
                     data=tech[6],
@@ -207,6 +205,7 @@ def update_technician():
         elif selected_technician_id:
             st.error(f"Technician with TechId '{selected_technician_id}' not found or invalid input.")
 
+
 # Main block
 if __name__ == "__main__":
     st.title("Technician Booking Service")
@@ -214,18 +213,17 @@ if __name__ == "__main__":
     # Create technicians table if it doesn't exist
     create_technicians_table()
 
-    # Horizontal menu
-    menu_cols = st.columns([1, 1, 1, 1])
+    # Sidebar menu
+    with st.sidebar:
+        choice = option_menu(
+            "Menu",
+            ["Book Technician", "Upload Technician Details", "Delete Technician", "Update Technician"],
+            icons=["Mobile", "cloud-upload", "trash", "pencil-square"],
+            menu_icon="cast",
+            default_index=0,
+        )
 
-    menu_options = ["Book Technician Or Call Technician", "Upload Technician Details", "Delete Technician", "Update Technician"]
-    menu_icons = ["🛠️", "📤", "🗑️", "✏️"]
-    choice = None
-
-    for i, option in enumerate(menu_options):
-        if menu_cols[i].button(f"{menu_icons[i]} {option}"):
-            choice = option
-
-    if choice == "Book Technician Or Call Technician":
+    if choice == "Book Technician":
         st.subheader("Book a Technician")
         book_technician()
     elif choice == "Upload Technician Details":
