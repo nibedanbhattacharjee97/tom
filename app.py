@@ -84,14 +84,16 @@ def book_technician():
             st.write("No technicians available. Please check back later.")
             return
 
+        # Responsive display for technicians
         page = st.number_input("Page", min_value=1, max_value=(len(technicians) - 1) // 4 + 1, step=1, value=1)
         start = (page - 1) * 4
         end = start + 4
         technicians_to_display = technicians[start:end]
 
         for i, tech in enumerate(technicians_to_display):
-            col1, col2 = st.columns(2)
-            with col1 if i % 2 == 0 else col2:
+            # Use only one column layout on mobile for better readability
+            col1 = st.columns([1])[0]
+            with col1:
                 st.write(f"### {tech[2]}")
                 st.write(f"Phone: {tech[3]}")
                 st.write(f"Address: {tech[4]}")
@@ -204,7 +206,6 @@ def update_technician():
         elif selected_technician_id:
             st.error(f"Technician with TechId '{selected_technician_id}' not found or invalid input.")
 
-
 # Main block
 if __name__ == "__main__":
     st.title("Technician Booking Service")
@@ -213,7 +214,7 @@ if __name__ == "__main__":
     create_technicians_table()
 
     # Horizontal menu
-    menu_cols = st.columns(4)
+    menu_cols = st.columns([1, 1, 1, 1])
 
     menu_options = ["Book Technician Or Call Technician", "Upload Technician Details", "Delete Technician", "Update Technician"]
     menu_icons = ["🛠️", "📤", "🗑️", "✏️"]
