@@ -2,7 +2,6 @@ import streamlit as st
 from datetime import datetime
 import sqlite3
 import io
-from streamlit_option_menu import option_menu
 
 # Function to create database connection
 def get_db_connection():
@@ -72,7 +71,7 @@ def upload_technician():
                     st.error("Please fill all the fields and upload the required files")
         conn.close()
 
-# Function to book technician
+# Function to Book Technician Or Call Technician
 def book_technician():
     conn = get_db_connection()
     if conn:
@@ -213,17 +212,18 @@ if __name__ == "__main__":
     # Create technicians table if it doesn't exist
     create_technicians_table()
 
-    # Sidebar menu
-    with st.sidebar:
-        choice = option_menu(
-            "Menu",
-            ["Book Technician", "Upload Technician Details", "Delete Technician", "Update Technician"],
-            icons=["Mobile", "cloud-upload", "trash", "pencil-square"],
-            menu_icon="cast",
-            default_index=0,
-        )
+    # Horizontal menu
+    menu_cols = st.columns(4)
 
-    if choice == "Book Technician":
+    menu_options = ["Book Technician Or Call Technician", "Upload Technician Details", "Delete Technician", "Update Technician"]
+    menu_icons = ["🛠️", "📤", "🗑️", "✏️"]
+    choice = None
+
+    for i, option in enumerate(menu_options):
+        if menu_cols[i].button(f"{menu_icons[i]} {option}"):
+            choice = option
+
+    if choice == "Book Technician Or Call Technician":
         st.subheader("Book a Technician")
         book_technician()
     elif choice == "Upload Technician Details":
