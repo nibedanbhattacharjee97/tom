@@ -282,8 +282,8 @@ if __name__ == "__main__":
     with st.sidebar:
         choice = option_menu(
             "Menu",
-            ["Book Technician", "Upload Technician Details", "Delete Technician", "Update Technician", "After Service Details"],
-            icons=["Mobile", "cloud-upload", "trash", "pencil-square", "Money"],
+            ["Book Technician", "Upload Technician Details", "After Service Details", "Update Technician", "Delete Technician"],
+            icons=["Mobile", "cloud-upload", "Mobile", "pencil-square", "trash"],
             menu_icon="cast",
             default_index=0,
         )
@@ -294,13 +294,14 @@ if __name__ == "__main__":
     elif choice == "Upload Technician Details":
         st.subheader("Upload Technician Details")
         upload_technician()
-    elif choice == "Delete Technician":
-        st.subheader("Delete Technician (Admin Only)")
-        delete_technician()
     elif choice == "Update Technician":
         st.subheader("Update Technician Details")
         update_technician()
     elif choice == "After Service Details":
         st.subheader("After Service Details")
         fill_technician_service_feed()
+    elif choice == "Delete Technician":
+        st.subheader("Delete Technician (Admin Only)")
+        delete_technician()
+
     
