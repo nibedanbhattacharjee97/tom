@@ -3,34 +3,96 @@ from datetime import datetime
 import sqlite3
 import io
 from streamlit_option_menu import option_menu
+from werkzeug.security import generate_password_hash, check_password_hash
 
-# Function to create database connection
-def get_db_connection():
+# Initialize session state variables
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+
+if 'signed_up' not in st.session_state:
+    st.session_state.signed_up = False
+
+def get_db_connection(db_name):
     try:
-        conn = sqlite3.connect('actual.db')  # Changed database name to actual.db
+        conn = sqlite3.connect(db_name)
         return conn
     except sqlite3.Error as e:
         st.error(f"Database connection failed: {e}")
         return None
 
-# Function to create technicians table
-def create_technicians_table():
-    conn = get_db_connection()
+def create_user_table():
+    conn = get_db_connection('users.db')
     if conn:
         c = conn.cursor()
         c.execute('''
-            CREATE TABLE IF NOT EXISTS technicians (
+            CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                TechId TEXT UNIQUE,
-                name TEXT,
-                phone TEXT,
-                address TEXT,
-                photo BLOB,
-                tech_certificate BLOB,
-                uploaded_at TEXT
+                username TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL,
+                email TEXT UNIQUE
             )
         ''')
         conn.commit()
+        conn.close()
+
+def sign_up():
+    conn = get_db_connection('users.db')
+    if conn:
+        c = conn.cursor()
+        with st.form("sign_up_form"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            confirm_password = st.text_input("Confirm Password", type="password")
+            email = st.text_input("Email")
+
+            if password != confirm_password:
+                st.error("Passwords do not match")
+                return
+
+            submit = st.form_submit_button("Sign Up")
+
+            if submit:
+                # Hash the password before saving
+                hashed_password = generate_password_hash(password)
+
+                # Check if the username is already taken
+                c.execute("SELECT * FROM users WHERE username=?", (username,))
+                existing_user = c.fetchone()
+
+                if existing_user:
+                    st.warning("Username already taken. Please choose a different one.")
+                else:
+                    c.execute('''
+                        INSERT INTO users (username, password, email)
+                        VALUES (?, ?, ?)
+                    ''', (username, hashed_password, email))
+                    conn.commit()
+                    st.session_state.signed_up = True
+                    st.success("User successfully signed up. You can now log in.")
+        conn.close()
+
+def login():
+    conn = get_db_connection('users.db')
+    if conn:
+        c = conn.cursor()
+        with st.form("login_form"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submit = st.form_submit_button("Login")
+
+            if submit:
+                c.execute("SELECT * FROM users WHERE username=?", (username,))
+                user = c.fetchone()
+
+                if user:
+                    hashed_password = user[2]
+                    if check_password_hash(hashed_password, password):
+                        st.session_state.logged_in = True
+                        st.success(f"Logged in as {username}")
+                    else:
+                        st.error("Incorrect password. Please try again.")
+                else:
+                    st.error("Username not found. Please sign up if you don't have an account.")
         conn.close()
 
 # Function to upload technician details
@@ -161,7 +223,7 @@ def update_technician():
         selected_technician_id = st.text_input("Enter Technician TechID to Update", "")
 
         if selected_technician_id and selected_technician_id in technician_ids:
-            conn = get_db_connection()
+            conn = get_db_connection('actual.db')
             if conn:
                 c = conn.cursor()
                 c.execute("SELECT * FROM technicians WHERE TechId = ?", (selected_technician_id,))
@@ -186,7 +248,7 @@ def update_technician():
                                 tech_certificate_data = tech_certificate.read() if tech_certificate else tech[6]
 
                                 # Update database
-                                conn = get_db_connection()
+                                conn = get_db_connection('actual.db')
                                 if conn:
                                     c = conn.cursor()
                                     c.execute('''
@@ -204,16 +266,6 @@ def update_technician():
                     st.error(f"Technician with TechId '{selected_technician_id}' not found.")
         elif selected_technician_id:
             st.error(f"Technician with TechId '{selected_technician_id}' not found or invalid input.")
-
-
-def get_db_connection(db_name):
-    try:
-        conn = sqlite3.connect(db_name)
-        return conn
-    except sqlite3.Error as e:
-        st.error(f"Database connection failed: {e}")
-        return None
-
 
 def create_service_feed_table():
     conn = get_db_connection('service_feed.db')
@@ -274,34 +326,62 @@ def fill_technician_service_feed():
                     st.error("Please fill in all the required fields.")
         conn.close()
 
-
-# Main block
 if __name__ == "__main__":
+    create_user_table()  # Ensure user table exists
+
     st.title("Technician Booking Service")
-    # Sidebar menu
+
+    # Sidebar menu including user and technician account creation options
     with st.sidebar:
         choice = option_menu(
             "Menu",
-            ["Book Technician", "Upload Technician Details", "After Service Details", "Update Technician", "Delete Technician"],
-            icons=["Mobile", "cloud-upload", "Mobile", "pencil-square", "trash"],
+            ["Book Technician", "Upload Technician Details", "After Service Details", "Update Technician", "Delete Technician", "Sign Up", "Login"],
+            icons=["Mobile", "cloud-upload", "Mobile", "pencil-square", "trash", "Mobile", "cloud-upload"],
             menu_icon="cast",
             default_index=0,
         )
 
-    if choice == "Book Technician":
-        st.subheader("Book a Technician")
-        book_technician()
-    elif choice == "Upload Technician Details":
-        st.subheader("Upload Technician Details")
-        upload_technician()
-    elif choice == "Update Technician":
-        st.subheader("Update Technician Details")
-        update_technician()
-    elif choice == "After Service Details":
-        st.subheader("After Service Details")
-        fill_technician_service_feed()
-    elif choice == "Delete Technician":
-        st.subheader("Delete Technician (Admin Only)")
-        delete_technician()
+    # Define boolean variables to track sign-up and login status
+    signed_up = False
+    logged_in = False
 
-    
+    # Check if the user is signed up and logged in before accessing other functionalities
+    if choice not in ["Sign Up", "Login"]:
+        # Check login status
+        if st.session_state.logged_in:
+            logged_in = True
+        else:
+            st.warning("Please log in first to access other functionalities.")
+            choice = "Login"  # Redirect to login if not logged in
+
+    if choice == "Sign Up":
+        st.subheader("Sign Up")
+        sign_up()
+        # After successful sign-up, set signed_up to True
+        if st.session_state.signed_up:
+            signed_up = True
+
+    elif choice == "Login":
+        st.subheader("Login")
+        login()
+        # After successful login, set logged_in to True
+        if st.session_state.logged_in:
+            logged_in = True
+
+    # Proceed to other functionalities only if logged in
+    if logged_in:
+        if choice == "Book Technician":
+            st.subheader("Book a Technician")
+            book_technician()
+        elif choice == "Upload Technician Details":
+            st.subheader("Upload Technician Details")
+            upload_technician()
+        elif choice == "Update Technician":
+            st.subheader("Update Technician Details")
+            update_technician()
+        elif choice == "After Service Details":
+            st.subheader("After Service Details")
+            fill_technician_service_feed()
+        elif choice == "Delete Technician":
+            st.subheader("Delete Technician (Admin Only)")
+            delete_technician()
