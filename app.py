@@ -35,7 +35,7 @@ def create_technicians_table():
 
 # Function to upload technician details
 def upload_technician():
-    conn = get_db_connection()
+    conn = get_db_connection('actual.db')
     if conn:
         c = conn.cursor()
         with st.form("upload_technician_form"):
@@ -74,7 +74,7 @@ def upload_technician():
 
 # Function to book technician
 def book_technician():
-    conn = get_db_connection()
+    conn = get_db_connection('actual.db')
     if conn:
         c = conn.cursor()
         c.execute("SELECT * FROM technicians")
@@ -114,7 +114,7 @@ def book_technician():
 
 # Function to delete technician (password protected)
 def delete_technician():
-    conn = get_db_connection()
+    conn = get_db_connection('actual.db')
     if conn:
         c = conn.cursor()
         password = st.text_input("Enter Password", type="password")
@@ -145,7 +145,7 @@ def delete_technician():
 
 # Function to update technician details
 def update_technician():
-    conn = get_db_connection()
+    conn = get_db_connection('actual.db')
     if conn:
         c = conn.cursor()
         c.execute("SELECT TechId, name FROM technicians")
@@ -206,19 +206,84 @@ def update_technician():
             st.error(f"Technician with TechId '{selected_technician_id}' not found or invalid input.")
 
 
+def get_db_connection(db_name):
+    try:
+        conn = sqlite3.connect(db_name)
+        return conn
+    except sqlite3.Error as e:
+        st.error(f"Database connection failed: {e}")
+        return None
+
+
+def create_service_feed_table():
+    conn = get_db_connection('service_feed.db')
+    if conn:
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS service_feed (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tech_id TEXT,
+                customer_email TEXT,
+                booking_number TEXT,
+                service_count INTEGER,
+                problem_status TEXT,
+                time_hours INTEGER,
+                problem_area TEXT,
+                user_feedback TEXT,
+                spare_details TEXT,
+                fees_paid TEXT,
+                amount_paid REAL,
+                timestamp TEXT
+            )
+        ''')
+        conn.commit()
+        conn.close()
+
+def fill_technician_service_feed():
+    create_service_feed_table()  # Ensure table exists before attempting to insert data
+    conn = get_db_connection('service_feed.db')
+    if conn:
+        c = conn.cursor()
+        with st.form("fill_service_feed_form"):
+            tech_id = st.text_input("Technician TechID")
+            customer_email = st.text_input("Customer Email")
+            booking_number = st.text_input("Booking Number")
+            service_count = st.number_input("Service Count", min_value=1, step=1)
+            problem_status = st.selectbox("Problem Status", ["Call End", "Need Other Tech", "No one In Home", "Not Solved"])
+            time_hours = st.number_input("Time in Hours", min_value=1, step=1)
+            problem_area = st.text_area("Problem Area")
+            user_feedback = st.text_area("User Feedback")
+            spare_details = st.text_area("Spare Conjunction Details")
+            fees_paid = st.selectbox("Fees Paid", ["Done", "Something", "No fees paid by Customer"])
+            amount_paid = st.number_input("Amount Paid", min_value=0.0)
+            submit = st.form_submit_button("Submit Service Feed")
+
+            if submit:
+                if tech_id and customer_email and problem_status and problem_area and user_feedback and spare_details and fees_paid:
+                    timestamp = datetime.now().isoformat()
+
+                    c.execute('''
+                        INSERT INTO service_feed
+                        (tech_id, customer_email, booking_number, service_count, problem_status, time_hours, problem_area, user_feedback, spare_details, fees_paid, amount_paid, timestamp)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (tech_id, customer_email, booking_number, service_count, problem_status, time_hours, problem_area, user_feedback, spare_details, fees_paid, amount_paid, timestamp))
+                    
+                    conn.commit()
+                    st.success("Service feed successfully submitted.")
+                else:
+                    st.error("Please fill in all the required fields.")
+        conn.close()
+
+
 # Main block
 if __name__ == "__main__":
     st.title("Technician Booking Service")
-
-    # Create technicians table if it doesn't exist
-    create_technicians_table()
-
     # Sidebar menu
     with st.sidebar:
         choice = option_menu(
             "Menu",
-            ["Book Technician", "Upload Technician Details", "Delete Technician", "Update Technician"],
-            icons=["Mobile", "cloud-upload", "trash", "pencil-square"],
+            ["Book Technician", "Upload Technician Details", "Delete Technician", "Update Technician", "After Service Details"],
+            icons=["Mobile", "cloud-upload", "trash", "pencil-square", "Money"],
             menu_icon="cast",
             default_index=0,
         )
@@ -235,3 +300,7 @@ if __name__ == "__main__":
     elif choice == "Update Technician":
         st.subheader("Update Technician Details")
         update_technician()
+    elif choice == "After Service Details":
+        st.subheader("After Service Details")
+        fill_technician_service_feed()
+        
