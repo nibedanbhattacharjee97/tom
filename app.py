@@ -92,13 +92,14 @@ def book_technician():
 
         for i, tech in enumerate(technicians_to_display):
             # Use only one column layout on mobile for better readability
-            col1 = st.columns([1])[0]
+            col1, col2 = st.columns([1, 1])
             with col1:
                 st.write(f"### {tech[2]}")
                 st.write(f"Phone: {tech[3]}")
                 st.write(f"Address: {tech[4]}")
                 st.write(f"Uploaded At: {tech[7]}")
                 st.image(io.BytesIO(tech[5]), caption='Technician Photo', use_column_width=True)
+            with col2:
                 st.download_button(
                     "Download Technical Certificate",
                     data=tech[6],
